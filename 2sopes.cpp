@@ -18,7 +18,7 @@ int main (int argc, char *argv[]) {
   char * memblock;
   string pathOut;
   string pathConcat;
-    string inputFile(argv[1]);
+  string inputFile(argv[1]);
 
 
   ifstream file (inputFile, ios::in|ios::binary|ios::ate);
