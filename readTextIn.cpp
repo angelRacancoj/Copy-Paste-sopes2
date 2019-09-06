@@ -1,10 +1,17 @@
 /*
 LINKS:
+Memory:
+http://www.cplusplus.com/doc/tutorial/files/
+https://databasefaq.com/index.php/answer/39431/c-11-ram-file-format-recognizing-file-formats-from-binary-c-
+http://www.cplusplus.com/doc/tutorial/files/
+
+Others:
 http://www.cplusplus.com/reference/string/string/find/
 http://www.cplusplus.com/reference/vector/vector/data/
 http://www.cplusplus.com/forum/beginner/14792/
 https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c#14266139
-
+https://stackoverflow.com/questions/12510874/how-can-i-check-if-a-directory-exists
+https://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exist-using-standard-c-c11-c
 */
 
 #include <iostream>
@@ -12,6 +19,12 @@ https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-str
 #include <string>
 #include <stdio.h>
 #include<vector>
+#include <dirent.h>
+#include <cstring>
+#include <memory> 
+#include <sys/stat.h> 
+#include <sys/types.h> 
+
 using namespace std;
 
 struct fileMemory{
@@ -23,42 +36,87 @@ struct fileMemory{
 vector <string> getFilesPath(string textoEntrada);
 string getPath(string textoEntrada, string delimiter);
 string getFileName(string textoEntrada);
+string getDirectoryName(string textoEntrada);
 fileMemory getFile(string inputFile);
 void writeFile(fileMemory fOut, string destinyPath);
+bool existFile(string filePath);
+bool existDirectory(string filePath);
+vector<string> GetDirectoryFiles(string dir);
 
 int main (int argc, char *argv[]) {
-	string pathOut;
+	string pathOut = "/home/";
 	string delimiterFile = ".archivo";
 	string delimiterDir = ".directorio";
+	string pathDirectory;
 	string inputFile(argv[1]);
 	vector <fileMemory> fileIn;
-	vector <string> paths = getFilesPath(inputFile);
+	vector <fileMemory> directoryFiles;
+	vector <string> paths = getFilesPath(inputFile);;
+	vector <string> directoryPaths;
 
 	cout<<"List size: "<< paths.size() <<endl;
 
 	for (int i = 0; i < paths.size(); ++i){
 
 		if (paths[i].find(delimiterFile) != string::npos) {
-			fileIn.push_back(getFile(getPath(paths[i],delimiterFile)));
+			string pathAux = getPath(paths[i],delimiterFile);
+			if (existFile(pathAux)){
+				fileIn.push_back(getFile(pathAux));
+			} else {
+				cout << "No existe el archivo: "<<pathAux<<", este archivo no se copiara"<<endl;
+			}
 
 		} else if (paths[i].find(delimiterDir) != string::npos) {
-			cout<<"In: "<<paths[i]<<", Path: "<<getPath(paths[i],delimiterDir)<<endl;
+			string pathAux = getPath(paths[i],delimiterDir);
+
+			if (existDirectory(pathAux)){
+				pathDirectory = getDirectoryName(pathAux);
+				directoryPaths = GetDirectoryFiles(pathAux);
+				cout<<pathDirectory<<endl;
+				for (int j = 0; j < directoryPaths.size(); ++j){
+					cout<<"Path File: "<<directoryPaths[j]<<endl;
+					directoryFiles.push_back(getFile((pathAux + directoryPaths[j])));
+				}
+
+//				cout<<"In: "<<paths[i]<<", Path: "<<pathAux<<endl;
+			} else {
+				cout << "No existe el directorio: "<<pathAux<<", no se copiara"<<endl;	
+			}
 		} else {
 			cout<<"Error en: "<<paths[i]<<endl;
 			return 0;
 		}
 		//cout<<"In: "<<paths[i]<<", Path: "<<getPath(paths[i],delimiterFile)<<endl;
 	}
-
+	cout << "Carga en memoria completada ;)\n\n";
 	//ask for final destiny
-	cout << "Ingrese la ruta destino: ";
-    cin >> pathOut;
-
-    for (int i = 0; i < fileIn.size(); ++i){
-    	writeFile(fileIn[i],pathOut);
-    }
-
-    cout << "Tarea completada :)"<<endl;
+	while((pathOut.compare("x") != 0) || (pathOut.compare("X") != 0)){
+		cout << "Ingrese la ruta destino(\"X\" para salir): ";
+	    cin >> pathOut;
+	    string directoryPathAux = pathOut+pathDirectory;
+	    if (existDirectory(pathOut)){
+	    	for (int i = 0; i < fileIn.size(); ++i){
+		    	writeFile(fileIn[i],pathOut);
+		    }
+		    if (directoryFiles.size() > 0){
+		    	if (mkdir(directoryPathAux.c_str(),0777) == 0){
+		    		for (int i = 0; i < directoryFiles.size(); ++i){
+			    		writeFile(directoryFiles[i],(directoryPathAux+"/"));		
+			    	}
+		    	} else {
+		    		cout<<"Ya existe la carpeta: "<< (pathOut+pathDirectory)<<endl;
+		    	}
+		    }
+		    cout << "Copia completada :)"<<endl;
+	    } else {	
+		    if ((pathOut.compare("x") == 0) || (pathOut.compare("X") == 0)){
+		    	cout << "Tarea completada :)"<<endl;
+		    	return 0;
+		    } else {
+		    	cout<<"La direccion destino: "<< pathOut<<" no existe"<<endl;
+		    }
+		}
+	}
 	return 0;
 }
 
@@ -93,7 +151,7 @@ string getPath(string textoEntrada, string delimiter){
 
 	    textoEntrada.erase(0, pos + delimiter.length());
 	}
-	cout << "Path: "<<pathFile << endl;
+	cout << "Path origin: "<<pathFile << endl;
 	return pathFile; 
 }
 
@@ -110,6 +168,21 @@ string getFileName(string textoEntrada){
 	}
 //	cout << textoEntrada << endl;
 	return textoEntrada; 
+}
+
+string getDirectoryName(string textoEntrada){
+
+	string delimiter="/";
+
+	size_t pos = 0;
+	string token;
+	while ((pos = textoEntrada.find(delimiter)) != string::npos) {
+	    token = textoEntrada.substr(0, pos);
+//	    cout << token << endl;
+	    textoEntrada.erase(0, pos + delimiter.length());
+	}
+//	cout << textoEntrada << endl;
+	return (token); 
 }
 
 fileMemory getFile(string inputFile){
@@ -140,4 +213,37 @@ void writeFile(fileMemory fOut, string destinyPath){
     fileout.close();
 
     delete[] fOut.memblockF;
+}
+
+bool existFile(string filePath){
+	ifstream file (filePath, ios::in|ios::binary|ios::ate);
+	if (file.is_open()){
+		file.close();
+	  	return true;
+	} else {
+	  	return false;
+	}
+}
+
+bool existDirectory(string filePath){
+	vector<string> files = GetDirectoryFiles(filePath);
+	return (files.size() > 0);
+}
+
+vector<string> GetDirectoryFiles(string dir) {
+	vector<string> files;
+	shared_ptr<DIR> directory_ptr(opendir(dir.c_str()), [](DIR* dir){ dir && closedir(dir); });
+	struct dirent *dirent_ptr;
+	if (!directory_ptr) {
+		cout << "Error opening : " << strerror(errno) << dir << endl;
+		return files;
+	}
+
+	while ((dirent_ptr = readdir(directory_ptr.get())) != nullptr) {
+		string nameAux = string(dirent_ptr->d_name);
+		if ((nameAux.compare(".") != 0) && (nameAux.compare("..") != 0)){
+			files.push_back(nameAux);
+		}
+	}
+	return files;
 }
