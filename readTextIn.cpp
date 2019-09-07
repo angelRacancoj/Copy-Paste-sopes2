@@ -24,14 +24,21 @@ https://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exis
 #include <memory> 
 #include <sys/stat.h> 
 #include <sys/types.h> 
+#include <unistd.h>
+#include <sys/sysinfo.h>
 
 using namespace std;
+
+struct sysinfo info;
 
 struct fileMemory{
 	string filePath;
 	streampos sizeF;
   	char * memblockF;
 };
+
+string delimiterFile = ".archivo";
+string delimiterDir = ".directorio";
 
 vector <string> getFilesPath(string textoEntrada);
 string getPath(string textoEntrada, string delimiter);
@@ -42,11 +49,12 @@ void writeFile(fileMemory fOut, string destinyPath);
 bool existFile(string filePath);
 bool existDirectory(string filePath);
 vector<string> GetDirectoryFiles(string dir);
+long getFileSize(string inputFile);
+long getFilesSize(vector <string> paths);
+long freeRam();
 
 int main (int argc, char *argv[]) {
 	string pathOut = "/home/";
-	string delimiterFile = ".archivo";
-	string delimiterDir = ".directorio";
 	string pathDirectory;
 	string inputFile(argv[1]);
 	vector <fileMemory> fileIn;
@@ -56,66 +64,67 @@ int main (int argc, char *argv[]) {
 
 	cout<<"List size: "<< paths.size() <<endl;
 
-	for (int i = 0; i < paths.size(); ++i){
+	if (freeRam() > getFilesSize(paths)){
+		for (int i = 0; i < paths.size(); ++i){
 
-		if (paths[i].find(delimiterFile) != string::npos) {
-			string pathAux = getPath(paths[i],delimiterFile);
-			if (existFile(pathAux)){
-				fileIn.push_back(getFile(pathAux));
-			} else {
-				cout << "No existe el archivo: "<<pathAux<<", este archivo no se copiara"<<endl;
-			}
-
-		} else if (paths[i].find(delimiterDir) != string::npos) {
-			string pathAux = getPath(paths[i],delimiterDir);
-
-			if (existDirectory(pathAux)){
-				pathDirectory = getDirectoryName(pathAux);
-				directoryPaths = GetDirectoryFiles(pathAux);
-				cout<<pathDirectory<<endl;
-				for (int j = 0; j < directoryPaths.size(); ++j){
-					cout<<"Path File: "<<directoryPaths[j]<<endl;
-					directoryFiles.push_back(getFile((pathAux + directoryPaths[j])));
+			if (paths[i].find(delimiterFile) != string::npos) {
+				string pathAux = getPath(paths[i],delimiterFile);
+				if (existFile(pathAux)){
+					fileIn.push_back(getFile(pathAux));
+				} else {
+					cout << "No existe el archivo: "<<pathAux<<", este archivo no se copiara"<<endl;
 				}
 
-//				cout<<"In: "<<paths[i]<<", Path: "<<pathAux<<endl;
+			} else if (paths[i].find(delimiterDir) != string::npos) {
+				string pathAux = getPath(paths[i],delimiterDir);
+
+				if (existDirectory(pathAux)){
+					pathDirectory = getDirectoryName(pathAux);
+					directoryPaths = GetDirectoryFiles(pathAux);
+					for (int j = 0; j < directoryPaths.size(); ++j){
+						cout<<"Path File: "<<directoryPaths[j]<<endl;
+						directoryFiles.push_back(getFile((pathAux + directoryPaths[j])));
+					}
+				} else {
+					cout << "No existe el directorio: "<<pathAux<<", no se copiara"<<endl;	
+				}
 			} else {
-				cout << "No existe el directorio: "<<pathAux<<", no se copiara"<<endl;	
+				cout<<"Error en: "<<paths[i]<<endl;
+				return 0;
 			}
-		} else {
-			cout<<"Error en: "<<paths[i]<<endl;
-			return 0;
 		}
-		//cout<<"In: "<<paths[i]<<", Path: "<<getPath(paths[i],delimiterFile)<<endl;
-	}
-	cout << "Carga en memoria completada ;)\n\n";
-	//ask for final destiny
-	while((pathOut.compare("x") != 0) || (pathOut.compare("X") != 0)){
-		cout << "Ingrese la ruta destino(\"X\" para salir): ";
-	    cin >> pathOut;
-	    string directoryPathAux = pathOut+pathDirectory;
-	    if (existDirectory(pathOut)){
-	    	for (int i = 0; i < fileIn.size(); ++i){
-		    	writeFile(fileIn[i],pathOut);
-		    }
-		    if (directoryFiles.size() > 0){
-		    	if (mkdir(directoryPathAux.c_str(),0777) == 0){
-		    		for (int i = 0; i < directoryFiles.size(); ++i){
-			    		writeFile(directoryFiles[i],(directoryPathAux+"/"));		
+		cout << "Carga en memoria completada ;)\n\n";
+		//ask for final destiny
+		while((pathOut.compare("x") != 0) || (pathOut.compare("X") != 0)){
+			cout << "Ingrese la ruta destino(\"X\" para salir): ";
+		    cin >> pathOut;
+		    string directoryPathAux = pathOut+pathDirectory;
+		    if (existDirectory(pathOut)){
+		    	for (int i = 0; i < fileIn.size(); ++i){
+			    	writeFile(fileIn[i],pathOut);
+			    }
+			    if (directoryFiles.size() > 0){
+			    	if (mkdir(directoryPathAux.c_str(),0777) == 0){
+			    		for (int i = 0; i < directoryFiles.size(); ++i){
+				    		writeFile(directoryFiles[i],(directoryPathAux+"/"));		
+				    	}
+			    	} else {
+			    		cout<<"Ya existe la carpeta: "<< (pathOut+pathDirectory)<<endl;
 			    	}
-		    	} else {
-		    		cout<<"Ya existe la carpeta: "<< (pathOut+pathDirectory)<<endl;
-		    	}
-		    }
-		    cout << "Copia completada :)"<<endl;
-	    } else {	
-		    if ((pathOut.compare("x") == 0) || (pathOut.compare("X") == 0)){
-		    	cout << "Tarea completada :)"<<endl;
-		    	return 0;
-		    } else {
-		    	cout<<"La direccion destino: "<< pathOut<<" no existe"<<endl;
-		    }
+			    }
+			    cout << "Copia completada :)"<<endl;
+		    } else {	
+			    if ((pathOut.compare("x") == 0) || (pathOut.compare("X") == 0)){
+			    	cout << "Tarea completada :)"<<endl;
+			    	return 0;
+			    } else {
+			    	cout<<"La direccion destino: "<< pathOut<<" no existe"<<endl;
+			    }
+			}
+
 		}
+	} else {
+		cout << "Memoria insuficiente, intente de nuevo :'(" << endl;
 	}
 	return 0;
 }
@@ -129,12 +138,10 @@ vector <string> getFilesPath(string textoEntrada){
 	string token;
 	while ((pos = textoEntrada.find(delimiter)) != string::npos) {
 	    token = textoEntrada.substr(0, pos);
-//	    cout << token << endl;
 	    paths.push_back(token);
 
 	    textoEntrada.erase(0, pos + delimiter.length());
 	}
-//	cout << textoEntrada << endl;
 	paths.push_back(textoEntrada);
 
 	return paths; 
@@ -163,10 +170,8 @@ string getFileName(string textoEntrada){
 	string token;
 	while ((pos = textoEntrada.find(delimiter)) != string::npos) {
 	    token = textoEntrada.substr(0, pos);
-//	    cout << token << endl;
 	    textoEntrada.erase(0, pos + delimiter.length());
 	}
-//	cout << textoEntrada << endl;
 	return textoEntrada; 
 }
 
@@ -178,10 +183,8 @@ string getDirectoryName(string textoEntrada){
 	string token;
 	while ((pos = textoEntrada.find(delimiter)) != string::npos) {
 	    token = textoEntrada.substr(0, pos);
-//	    cout << token << endl;
 	    textoEntrada.erase(0, pos + delimiter.length());
 	}
-//	cout << textoEntrada << endl;
 	return (token); 
 }
 
@@ -246,4 +249,60 @@ vector<string> GetDirectoryFiles(string dir) {
 		}
 	}
 	return files;
+}
+
+//Return the size en bytes
+long getFileSize(string inputFile){
+    long size;
+
+    ifstream file (inputFile, ios::in|ios::binary|ios::ate);
+    if (file.is_open()) {
+        size = file.tellg();
+        file.close();
+    }
+    return size;
+}
+
+long getFilesSize(vector <string> paths){
+	long filesSize = 0;
+	vector <string> directoryPaths;
+	string pathDirectory;
+	for (int i = 0; i < paths.size(); ++i){
+
+		if (paths[i].find(delimiterFile) != string::npos) {
+			string pathAux = getPath(paths[i],delimiterFile);
+			if (existFile(pathAux)){
+				filesSize += getFileSize(pathAux);
+			} else {
+				cout << "No existe el archivo: "<<pathAux<<", no se ha calculado su peso"<<endl;
+			}
+
+		} else if (paths[i].find(delimiterDir) != string::npos) {
+			string pathAux = getPath(paths[i],delimiterDir);
+
+			if (existDirectory(pathAux)){
+				pathDirectory = getDirectoryName(pathAux);
+				directoryPaths = GetDirectoryFiles(pathAux);
+				for (int j = 0; j < directoryPaths.size(); ++j){
+					filesSize += getFileSize(pathAux + directoryPaths[j]);
+				}
+			} else {
+				cout << "No existe el directorio: "<<pathAux<<", no se ha calculado su peso"<<endl;	
+			}
+		} else {
+			cout<<"Error en: "<<paths[i]<<endl;
+			return 0;
+		}
+	}
+	cout << "Total files Size: "<< filesSize << " bytes"<< endl;
+	return filesSize;
+}
+
+long freeRam(){
+	if (sysinfo(&info) != 0){
+        return false;
+    }
+    long result =info.totalram - info.freeram;
+    cout << "Free ram: "<< result <<" bytes"<< endl;
+    return result;
 }
