@@ -12,6 +12,11 @@ http://www.cplusplus.com/forum/beginner/14792/
 https://stackoverflow.com/questions/14265581/parse-split-a-string-in-c-using-string-delimiter-standard-c#14266139
 https://stackoverflow.com/questions/12510874/how-can-i-check-if-a-directory-exists
 https://stackoverflow.com/questions/12774207/fastest-way-to-check-if-a-file-exist-using-standard-c-c11-c
+http://www.codebind.com/cpp-tutorial/cpp-program-list-files-directory-windows-linux/
+
+Ram:
+http://man7.org/linux/man-pages/man2/sysinfo.2.html
+https://stackoverflow.com/questions/349889/how-do-you-determine-the-amount-of-linux-system-ram-in-c
 */
 
 #include <iostream>
